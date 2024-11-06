@@ -22,7 +22,7 @@ services:
       labs:
         ipv4_address: 172.19.0.3
   ruta-api:
-    image: alaacabralma/03_backend1:v.2
+    image: alaacabralma/03_backend1:v.2 
     container_name: ruta-api
     ports:
       - "3000:3000"
