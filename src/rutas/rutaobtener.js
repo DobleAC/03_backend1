@@ -124,6 +124,28 @@ router.route('/Encontrardevoluciones')
          .then(() => session.close())
  });
 
+// Q06 Encontrar los pedidos de venta que tienen una devolución
+// MATCH (p:PedidoVenta)<-[:DEVOLUCION_DE]-(d:Devolucion)
+// RETURN p.id AS PedidoID, p.nombre AS NombreProducto, d.id AS DevolucionID, d.motivo AS MotivoDevolucion;
+
+router.route('/Encontrardevoluciones')
+ .all(cache)
+ .get(async (req, res) => {
+     const session = driver.session();
+     await session.run('MATCH (p:PedidoVenta)<-[:DEVOLUCION_DE]-(d:Devolucion) RETURN p.id AS PedidoID, p.nombre AS NombreProducto, d.id AS DevolucionID, d.motivo AS MotivoDevolucion')
+         .then(result => {
+             devoluciones = result.records.map(record => {
+                 return record.get('p').properties;
+             })
+             res.data = devoluciones;
+             res.json({ Devoluciones: devoluciones });
+         })
+         .catch(error => {
+             console.log(error);
+         })
+         .then(() => session.close())
+ });
+ 
 
 //  Q07 Listar los pedidos de venta que tienen un valor total mayor a $10,000.
 //  MATCH (pv:PedidoVenta) 
