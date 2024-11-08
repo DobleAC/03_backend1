@@ -129,8 +129,8 @@ router.route('/agotados')
    .all(cache)
    .delete(async (req, res) => {
        const session = driver.session();
-       await session.run('MATCH (provAnt:Proveedor {id: "PR001"})-[r:SUMINISTRA]->(p:Producto) ' +
-       'MATCH (provNuevo:Proveedor {id: "PR004"}) ' +
+       await session.run('MATCH (provAnt:Proveedor {id: "PR004"})-[r:SUMINISTRA]->(p:Producto) ' +
+       'MATCH (provNuevo:Proveedor {id: "PR001"}) ' +
        'DELETE r ' +
        'CREATE (provNuevo)-[:SUMINISTRA]->(p) ' +
        'RETURN p')
