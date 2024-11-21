@@ -1,29 +1,33 @@
-//longer.js
 const redis = require('redis');
-
-// Crea el cliente Redis
 const client = redis.createClient({
     socket: {
         port: 6379,
-        host: '172.19.0.3'
+        host: '172.19.0.3',  // Usa el nombre del servicio en lugar de la IP
     }
 });
 
-// Conectar al cliente Redis al iniciar el servidor
-client.connect().catch(err => {
-    console.error('Error connecting to Redis:', err);
-});
+// Conectar al cliente de Redis al cargar el archivo
+client.connect().catch(console.error);
 
-// Middleware que registra la solicitud y la respuesta y la almacena en Redis
-const loggingAndCacheMiddleware = async (req, res, next) => {
-    // Asegúrate de que res.data esté definido para las respuestas
-    res.data = null;
+module.exports = (req, res, next) => {
+    let responseBody;  // Variable para almacenar el contenido de la respuesta
+
+    // Sobreescribimos el método 'send' de res para capturar la respuesta
+    const originalSend = res.send;
+    res.send = function (body) {
+        responseBody = body;  // Guardar el contenido de la respuesta
+        originalSend.call(this, body);  // Llamar a la función original 'send'
+    };
 
     res.on('finish', async () => {
-        const key = `${req.method}:${Date.now()}:${req.originalUrl}`; // Corrección aquí
-        const valor = {
+        // Construir la clave y el valor
+        const fecha = new Date();
+        const key = `${req.method}:${fecha.toLocaleDateString()}-${fecha.getHours()}-${fecha.getMinutes()}-${fecha.getSeconds()}:${req.originalUrl}`;
+
+        // Almacenar todo en un solo objeto JSON en el valor
+        const valor = JSON.stringify({
             clave: key,
-            time: new Date().toISOString(), // Cambiado a formato ISO
+            time: fecha,
             req: {
                 method: req.method,
                 url: req.originalUrl,
@@ -33,35 +37,21 @@ const loggingAndCacheMiddleware = async (req, res, next) => {
             res: {
                 statusCode: res.statusCode,
                 statusMessage: res.statusMessage,
-                response: res.data // Esto ahora se obtiene para ambos métodos
+                response: responseBody
             }
-        };
-
-        // Imprimir el valor en consola
-        console.log('Se guardó correctamente el cache:', JSON.stringify(valor)); // Corrección aquí
-
-        // Guardar en Redis directamente el array de resultados
-        const redisKey = `log:${valor.req.method}:${valor.time}`; // Corrección aquí
+        });
+        console.log(valor);
         
-        // Serializa la respuesta para almacenarla en Redis
-        const redisValue = JSON.stringify(valor.res.response);
-
         try {
-            await client.set(redisKey, redisValue);
+            await client.set(key, valor);
         } catch (error) {
-            console.error('Error storing data in Redis:', error);
+            console.error("Error al conectar o enviar datos a Redis:", error);
         }
     });
-
     next();
 };
 
-// Exportar el middleware
-module.exports = loggingAndCacheMiddleware;
-
-// Manejo de la desconexión de Redis cuando finaliza la aplicación
-process.on('SIGINT', async () => {
-    await client.quit();
-    console.log('Redis client disconnected');
-    process.exit(0);
+// Desconectar el cliente Redis al cerrar la aplicación
+process.on('exit', () => {
+    client.disconnect().catch(console.error);
 });
